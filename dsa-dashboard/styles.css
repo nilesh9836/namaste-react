@@ -159,6 +159,11 @@ select option { background: var(--surface); }
   color: var(--review);
 }
 .btn-danger:hover { background: rgba(239,68,68,0.3); }
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
 
 /* ===== Feedback ===== */
 .feedback {
@@ -170,6 +175,16 @@ select option { background: var(--surface); }
 }
 .feedback.success { background: rgba(34,197,94,0.15); border: 1px solid var(--solved); color: var(--solved); }
 .feedback.error   { background: rgba(239,68,68,0.15);  border: 1px solid var(--review); color: var(--review); }
+
+.storage-status {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+.storage-status[data-state="success"] { color: var(--solved); }
+.storage-status[data-state="warning"],
+.storage-status[data-state="error"] { color: var(--review); }
 
 /* ===== Modules ===== */
 #modules-container {

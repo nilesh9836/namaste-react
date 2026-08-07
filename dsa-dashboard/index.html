@@ -85,9 +85,13 @@
       <button id="btn-collapse-all" class="btn btn-secondary">Collapse All</button>
       <button id="btn-export" class="btn btn-secondary">⬇ Export JSON</button>
       <button id="btn-import" class="btn btn-secondary">⬆ Import JSON</button>
+      <button id="btn-connect-file" class="btn btn-secondary">📂 Connect Progress File</button>
+      <button id="btn-choose-file" class="btn btn-secondary">💾 Choose Save File</button>
+      <button id="btn-save-file" class="btn btn-secondary" disabled>📝 Save to Connected File</button>
       <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Import JSON file" />
       <button id="btn-reset" class="btn btn-danger">↺ Reset All</button>
     </div>
+    <p id="file-storage-status" class="storage-status" role="status" aria-live="polite"></p>
   </section>
 
   <!-- Feedback message -->
@@ -99,7 +103,7 @@
   </main>
 
   <footer class="site-footer">
-    <p>Progress is saved in your browser's <strong>localStorage</strong>. It is device- and browser-specific — clearing site data will erase it. Export your progress regularly to back it up.</p>
+    <p>Progress always saves in your browser's <strong>localStorage</strong>. In browsers that support the File System Access API, you can also connect a local JSON file for this page session; if file access is unavailable or later denied, the dashboard keeps using localStorage. Keep using <strong>Export JSON</strong> / <strong>Import JSON</strong> as your manual backup and restore option.</p>
   </footer>
 
   <script src="app.js"></script>
