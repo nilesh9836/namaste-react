@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DSA Progress Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <h1>🧠 DSA Progress Dashboard</h1>
+      <p class="subtitle">Track your Java DSA journey — 19 modules, 285 questions</p>
+    </div>
+  </header>
+
+  <!-- Summary Bar -->
+  <section class="summary" aria-label="Progress summary">
+    <div class="summary-grid">
+      <div class="stat-card" id="stat-total">
+        <span class="stat-value" id="val-total">0</span>
+        <span class="stat-label">Total</span>
+      </div>
+      <div class="stat-card solved" id="stat-solved">
+        <span class="stat-value" id="val-solved">0</span>
+        <span class="stat-label">Solved</span>
+      </div>
+      <div class="stat-card inprogress" id="stat-inprogress">
+        <span class="stat-value" id="val-inprogress">0</span>
+        <span class="stat-label">In Progress</span>
+      </div>
+      <div class="stat-card pending" id="stat-pending">
+        <span class="stat-value" id="val-pending">0</span>
+        <span class="stat-label">Pending</span>
+      </div>
+      <div class="stat-card review" id="stat-review">
+        <span class="stat-value" id="val-review">0</span>
+        <span class="stat-label">Needs Review</span>
+      </div>
+      <div class="stat-card attempts" id="stat-attempts">
+        <span class="stat-value" id="val-attempts">0</span>
+        <span class="stat-label">Total Attempts</span>
+      </div>
+      <div class="stat-card progress-pct">
+        <span class="stat-value" id="val-pct">0%</span>
+        <span class="stat-label">Progress</span>
+      </div>
+    </div>
+    <div class="global-progress-bar" aria-label="Overall progress">
+      <div class="global-progress-fill" id="global-progress-fill"></div>
+    </div>
+  </section>
+
+  <!-- Controls -->
+  <section class="controls" aria-label="Filters and actions">
+    <div class="filters">
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Search questions…"
+        aria-label="Search questions"
+        autocomplete="off"
+      />
+      <select id="filter-module" aria-label="Filter by module">
+        <option value="">All Modules</option>
+      </select>
+      <select id="filter-platform" aria-label="Filter by platform">
+        <option value="">All Platforms</option>
+        <option value="LeetCode">LeetCode</option>
+        <option value="GeeksforGeeks">GeeksforGeeks</option>
+        <option value="HackerRank">HackerRank</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="filter-status" aria-label="Filter by status">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="inprogress">In Progress</option>
+        <option value="solved">Solved</option>
+        <option value="review">Needs Review</option>
+      </select>
+      <button id="btn-clear-filters" class="btn btn-secondary">Clear Filters</button>
+    </div>
+    <div class="actions">
+      <button id="btn-expand-all" class="btn btn-secondary">Expand All</button>
+      <button id="btn-collapse-all" class="btn btn-secondary">Collapse All</button>
+      <button id="btn-export" class="btn btn-secondary">⬇ Export JSON</button>
+      <button id="btn-import" class="btn btn-secondary">⬆ Import JSON</button>
+      <input type="file" id="import-file" accept=".json" style="display:none" aria-label="Import JSON file" />
+      <button id="btn-reset" class="btn btn-danger">↺ Reset All</button>
+    </div>
+  </section>
+
+  <!-- Feedback message -->
+  <div id="feedback" class="feedback" role="alert" aria-live="polite" hidden></div>
+
+  <!-- Modules list -->
+  <main id="modules-container" aria-label="DSA modules">
+    <!-- Populated by app.js -->
+  </main>
+
+  <footer class="site-footer">
+    <p>Progress is saved in your browser's <strong>localStorage</strong>. It is device- and browser-specific — clearing site data will erase it. Export your progress regularly to back it up.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
