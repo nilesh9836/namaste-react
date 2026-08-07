@@ -1568,14 +1568,14 @@ function loadProgress() {
   }
 }
 
-function saveProgress(progress, options = {}) {
+function saveProgress(currentProgress, options = {}) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentProgress));
   } catch (e) {
     showFeedback('Could not save to localStorage: ' + e.message, 'error');
   }
   if (options.syncFile !== false) {
-    void queueSaveToConnectedFile(progress);
+    void queueSaveToConnectedFile(currentProgress);
   }
 }
 
