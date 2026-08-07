@@ -20,14 +20,28 @@ An interactive, offline-capable progress tracker for the 285 Java DSA questions 
 - **Filter** by module, platform (LeetCode / GeeksforGeeks / HackerRank), status, or free-text search.
 - **Expand / Collapse** all modules.
 - **Export** progress to a JSON file and **Import** it back (with validation).
+- **Optional File System Access API support** to connect an existing JSON progress file or choose a save file and keep it updated during the current page session.
 - **Reset** all progress with confirmation.
 
-## localStorage Note
+## Storage and Backups
 
-> **Important:** Progress is stored in your browser's `localStorage`.  
-> It is **device- and browser-specific** — data saved in Chrome on your laptop will not appear in Firefox or on another device.  
-> Clear your browser site data and your progress will be lost.  
-> **Export your progress regularly** using the Export button to back it up.
+- **Default / fallback storage:** Progress is always saved to your browser's `localStorage`.
+  - This is **device- and browser-specific** — data saved in one browser profile will not automatically appear in another browser or on another device.
+  - Clearing browser site data removes the local copy.
+- **Optional file-based saving:** In browsers that support the File System Access API, you can:
+  - **Connect Progress File** to open an existing dashboard JSON file, validate it, and load its saved progress.
+  - **Choose Save File** to pick or create a JSON file that the dashboard can write to.
+  - **Save to Connected File** to force a save on demand.
+- When a file is connected, normal dashboard edits continue saving to `localStorage` **and** also attempt to update the connected JSON file.
+- The file handle is remembered **only for the current page session**. Reloading or closing the page clears the connection, so you must reconnect the file next time.
+- If file access is unsupported, permission is denied, or a file write fails, the dashboard shows feedback and continues saving to `localStorage` so your progress is not lost.
+- **Export JSON / Import JSON** remains the manual backup/restore workflow for every browser, including unsupported ones.
+
+## Browser Support Notes
+
+- The File System Access API is not available in every browser.
+- When it is unavailable, the file buttons stay disabled and the dashboard keeps working with `localStorage` plus Export/Import.
+- No backend, database, or repository write access is used — the dashboard remains a static-site feature that works on GitHub Pages.
 
 ## File Structure
 
@@ -35,6 +49,6 @@ An interactive, offline-capable progress tracker for the 285 Java DSA questions 
 dsa-dashboard/
   index.html   — Page structure and layout
   styles.css   — Dark-theme responsive styles
-  app.js       — Question data + all logic (localStorage, filtering, export/import)
+  app.js       — Question data + all logic (localStorage, optional file saving, filtering, export/import)
   README.md    — This file
 ```

@@ -1549,6 +1549,15 @@ const MODULES_DATA = [
 
 // ─── STORAGE ─────────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'dsa_progress_v1';
+const FILE_PICKER_TYPES = [
+  {
+    description: 'JSON Files',
+    accept: { 'application/json': ['.json'] },
+  },
+];
+const VALID_STATUSES = ['pending', 'inprogress', 'solved', 'review'];
+let progressFileHandle = null;
+let fileSaveQueue = Promise.resolve();
 
 function loadProgress() {
   try {
@@ -1559,11 +1568,14 @@ function loadProgress() {
   }
 }
 
-function saveProgress(progress) {
+function saveProgress(currentProgress, options = {}) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(currentProgress));
   } catch (e) {
     showFeedback('Could not save to localStorage: ' + e.message, 'error');
+  }
+  if (options.syncFile !== false) {
+    void queueSaveToConnectedFile(currentProgress);
   }
 }
 
@@ -1622,6 +1634,169 @@ function showFeedback(msg, type = 'success') {
   el.hidden = false;
   clearTimeout(el._timer);
   el._timer = setTimeout(() => { el.hidden = true; }, 4000);
+}
+
+function isFileSystemAccessSupported() {
+  return typeof window.showOpenFilePicker === 'function' && typeof window.showSaveFilePicker === 'function';
+}
+
+function buildProgressPayload(currentProgress = progress) {
+  return {
+    exportedAt: new Date().toISOString(),
+    version: 1,
+    progress: currentProgress,
+  };
+}
+
+function validateProgressPayload(parsed) {
+  if (typeof parsed !== 'object' || parsed === null || !parsed.progress || typeof parsed.progress !== 'object') {
+    throw new Error('Invalid file format: missing "progress" object.');
+  }
+  if (parsed.version !== 1) {
+    throw new Error('Unsupported version: ' + parsed.version);
+  }
+  for (const [moduleId, questions] of Object.entries(parsed.progress)) {
+    if (typeof questions !== 'object' || questions === null) {
+      throw new Error('Corrupt module data for module ' + moduleId);
+    }
+    for (const [qIdx, state] of Object.entries(questions)) {
+      if (typeof state !== 'object' || state === null) {
+        throw new Error('Corrupt question data in module ' + moduleId + ' question ' + qIdx);
+      }
+      if (state.status && !VALID_STATUSES.includes(state.status)) {
+        throw new Error('Invalid status "' + state.status + '" in module ' + moduleId);
+      }
+      if (state.count !== undefined && typeof state.count !== 'number') {
+        throw new Error('Invalid count in module ' + moduleId + ' question ' + qIdx);
+      }
+    }
+  }
+  return parsed.progress;
+}
+
+function setFileStorageStatus(message, state = 'info') {
+  const el = document.getElementById('file-storage-status');
+  if (!el) return;
+  el.textContent = message;
+  el.dataset.state = state;
+}
+
+function syncFileStorageControls() {
+  const connectBtn = document.getElementById('btn-connect-file');
+  const chooseBtn = document.getElementById('btn-choose-file');
+  const saveBtn = document.getElementById('btn-save-file');
+  const supported = isFileSystemAccessSupported();
+  if (connectBtn) connectBtn.disabled = !supported;
+  if (chooseBtn) chooseBtn.disabled = !supported;
+  if (saveBtn) {
+    saveBtn.disabled = !supported || !progressFileHandle;
+  }
+  if (!supported) {
+    setFileStorageStatus('File-based saving is not available in this browser. Progress will stay in localStorage, and Export/Import JSON remains available for backups.', 'warning');
+    return;
+  }
+  if (progressFileHandle) {
+    setFileStorageStatus('Connected file: "' + progressFileHandle.name + '". This file stays connected only until you reload or close the page.', 'success');
+    return;
+  }
+  setFileStorageStatus('Using localStorage right now. Connect an existing JSON file or choose a save file to keep a session copy on your device.', 'info');
+}
+
+async function ensureFilePermission(handle, mode) {
+  if (!handle || typeof handle.queryPermission !== 'function') return true;
+  const options = { mode };
+  if (await handle.queryPermission(options) === 'granted') return true;
+  if (typeof handle.requestPermission === 'function') {
+    return (await handle.requestPermission(options)) === 'granted';
+  }
+  return false;
+}
+
+async function writeProgressToHandle(handle, currentProgress) {
+  const hasPermission = await ensureFilePermission(handle, 'readwrite');
+  if (!hasPermission) {
+    throw new Error('Permission to write the connected file was denied.');
+  }
+  const writable = await handle.createWritable();
+  await writable.write(JSON.stringify(buildProgressPayload(currentProgress), null, 2));
+  await writable.close();
+}
+
+function disconnectProgressFile(message) {
+  progressFileHandle = null;
+  syncFileStorageControls();
+  if (message) {
+    showFeedback(message, 'error');
+  }
+}
+
+function queueSaveToConnectedFile(currentProgress, options = {}) {
+  if (!progressFileHandle) return Promise.resolve(false);
+  const activeHandle = progressFileHandle;
+  fileSaveQueue = fileSaveQueue.catch(() => {}).then(async () => {
+    if (activeHandle !== progressFileHandle) return false;
+    try {
+      await writeProgressToHandle(activeHandle, currentProgress);
+      syncFileStorageControls();
+      if (options.showSuccess) {
+        showFeedback('Progress saved to "' + activeHandle.name + '".', 'success');
+      }
+      return true;
+    } catch (error) {
+      if (activeHandle === progressFileHandle) {
+        disconnectProgressFile('Could not save to the connected file: ' + error.message + ' Progress is still saved in localStorage.');
+      }
+      return false;
+    }
+  });
+  return fileSaveQueue;
+}
+
+async function connectProgressFile() {
+  if (!isFileSystemAccessSupported()) return;
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      multiple: false,
+      excludeAcceptAllOption: true,
+      types: FILE_PICKER_TYPES,
+    });
+    if (!handle) return;
+    const file = await handle.getFile();
+    const importedProgress = validateProgressPayload(JSON.parse(await file.text()));
+    progress = importedProgress;
+    progressFileHandle = handle;
+    saveProgress(progress, { syncFile: false });
+    renderAll();
+    syncFileStorageControls();
+    showFeedback('Connected "' + handle.name + '" and loaded its progress.', 'success');
+  } catch (error) {
+    if (error && error.name === 'AbortError') return;
+    showFeedback('Could not connect progress file: ' + error.message, 'error');
+  }
+}
+
+async function chooseProgressFile() {
+  if (!isFileSystemAccessSupported()) return;
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'dsa-progress.json',
+      types: FILE_PICKER_TYPES,
+    });
+    progressFileHandle = handle;
+    syncFileStorageControls();
+    await queueSaveToConnectedFile(progress, { showSuccess: true });
+  } catch (error) {
+    if (error && error.name === 'AbortError') return;
+    showFeedback('Could not choose a save file: ' + error.message, 'error');
+  }
+}
+
+async function saveConnectedProgressFile() {
+  if (!progressFileHandle) {
+    showFeedback('Choose or connect a progress JSON file first.', 'error');
+    return;
+  }
+  await queueSaveToConnectedFile(progress, { showSuccess: true });
 }
 
 // ─── RENDER ──────────────────────────────────────────────────────────────────
@@ -1967,17 +2142,22 @@ function initControls() {
     document.getElementById('import-file').click();
   });
   document.getElementById('import-file').addEventListener('change', importProgress);
+  document.getElementById('btn-connect-file').addEventListener('click', () => {
+    void connectProgressFile();
+  });
+  document.getElementById('btn-choose-file').addEventListener('click', () => {
+    void chooseProgressFile();
+  });
+  document.getElementById('btn-save-file').addEventListener('click', () => {
+    void saveConnectedProgressFile();
+  });
   document.getElementById('btn-reset').addEventListener('click', resetProgress);
+  syncFileStorageControls();
 }
 
 // ─── EXPORT / IMPORT / RESET ─────────────────────────────────────────────────
 function exportProgress() {
-  const payload = {
-    exportedAt: new Date().toISOString(),
-    version: 1,
-    progress,
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify(buildProgressPayload(progress), null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'dsa_progress_' + new Date().toISOString().slice(0, 10) + '.json';
@@ -1994,28 +2174,7 @@ function importProgress(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const parsed = JSON.parse(e.target.result);
-      // Validate
-      if (typeof parsed !== 'object' || !parsed.progress || typeof parsed.progress !== 'object') {
-        throw new Error('Invalid file format: missing "progress" object.');
-      }
-      if (parsed.version !== 1) {
-        throw new Error('Unsupported version: ' + parsed.version);
-      }
-      // Validate inner structure
-      for (const [moduleId, questions] of Object.entries(parsed.progress)) {
-        if (typeof questions !== 'object') throw new Error('Corrupt module data for module ' + moduleId);
-        for (const [qIdx, state] of Object.entries(questions)) {
-          const validStatuses = ['pending', 'inprogress', 'solved', 'review'];
-          if (state.status && !validStatuses.includes(state.status)) {
-            throw new Error('Invalid status "' + state.status + '" in module ' + moduleId);
-          }
-          if (state.count !== undefined && typeof state.count !== 'number') {
-            throw new Error('Invalid count in module ' + moduleId + ' question ' + qIdx);
-          }
-        }
-      }
-      progress = parsed.progress;
+      progress = validateProgressPayload(JSON.parse(e.target.result));
       saveProgress(progress);
       renderAll();
       showFeedback('Progress imported successfully!', 'success');
